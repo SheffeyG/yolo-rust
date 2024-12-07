@@ -6,12 +6,8 @@ use crate::YOLOTask;
 #[command(author, version, about, long_about = None)]
 pub struct Args {
     /// ONNX model path
-    #[arg(long, required = true)]
+    #[arg(long, default_value = "yolov8n.onnx")]
     pub model: String,
-
-    /// input path
-    #[arg(long, required = true)]
-    pub source: String,
 
     /// device id
     #[arg(long, default_value_t = 0)]

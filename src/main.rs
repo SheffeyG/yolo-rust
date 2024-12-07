@@ -1,28 +1,79 @@
 use clap::Parser;
-
+use image;
+use std::sync::Arc;
+use tokio::sync::Mutex;
+use warp::{Filter, Rejection, Reply};
 use yolov8_rs::{Args, YOLOv8};
 
-fn main() -> Result<(), Box<dyn std::error::Error>> {
+#[derive(Debug)]
+struct PredictionError {
+    message: String,
+}
+
+impl warp::reject::Reject for PredictionError {}
+
+async fn predict(
+    model: Arc<Mutex<YOLOv8>>,
+    image_path: String,
+) -> Result<impl Reply, Rejection> {
+    let im = image::io::Reader::open(&image_path)
+        .map_err(|e| PredictionError {
+            message: format!("Image open error: {}", e),
+        })?
+        .with_guessed_format()
+        .map_err(|e| PredictionError {
+            message: format!("Image format error: {}", e),
+        })?
+        .decode()
+        .map_err(|e| PredictionError {
+            message: format!("Image decode error: {}", e),
+        })?;
+
+    let imgs = vec![im];
+
+    let mut model = model.lock().await;
+    let res = model
+        .run(&imgs)
+        .map_err(|e| PredictionError {
+            message: format!("Model prediction error: {}", e),
+        })?;
+
+    println!("[SUCCESS] Received image \"{image_path}\".");
+
+    // Convert YOLOResult to a String representation
+    let result_string = format!("{:?}", res);
+
+    Ok(result_string)
+}
+
+async fn error_handler(err: Rejection) -> Result<impl Reply, Rejection> {
+    if let Some(e) = err.find::<PredictionError>() {
+        Ok(warp::reply::with_status(
+            e.message.clone(),
+            warp::http::StatusCode::INTERNAL_SERVER_ERROR,
+        ))
+    } else {
+        Ok(warp::reply::with_status(
+            "Internal Server Error".to_string(),
+            warp::http::StatusCode::INTERNAL_SERVER_ERROR,
+        ))
+    }
+}
+
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let args = Args::parse();
+    let model = Arc::new(Mutex::new(YOLOv8::new(args)?));
 
-    // 1. load image
-    let x = image::io::Reader::open(&args.source)?
-        .with_guessed_format()?
-        .decode()?;
+    let routes= warp::path!("predict" / String)
+        .and(warp::get())
+        .and(warp::any().map(move || Arc::clone(&model)))
+        .and_then(|image_path, model| async { predict(model, image_path).await })
+        .recover(error_handler);
 
-    // 2. model support dynamic batch inference, so input should be a Vec
-    let xs = vec![x];
-
-    // You can test `--batch 2` with this
-    // let xs = vec![x.clone(), x];
-
-    // 3. build yolov8 model
-    let mut model = YOLOv8::new(args)?;
-    model.summary(); // model info
-
-    // 4. run
-    let ys = model.run(&xs)?;
-    println!("{:?}", ys);
+    warp::serve(routes)
+        .run(([127, 0, 0, 1], 3030))
+        .await;
 
     Ok(())
 }
