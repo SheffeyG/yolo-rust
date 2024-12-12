@@ -98,7 +98,7 @@ impl OrtBackend {
     pub fn build(args: OrtConfig) -> Result<Self> {
         // build env & session
         let env = Environment::builder()
-            .with_name("YOLOv8")
+            .with_name("YOLO")
             .with_log_level(ort::LoggingLevel::Verbose)
             .build()?
             .into_arc();

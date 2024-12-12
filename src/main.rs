@@ -3,7 +3,8 @@ use image;
 use std::sync::Arc;
 use tokio::sync::Mutex;
 use warp::{Filter, Rejection, Reply};
-use yolov8_rs::{Args, YOLOv8};
+use yolo::{Args, YOLO};
+use log::info;
 
 #[derive(Debug)]
 struct PredictionError {
@@ -13,7 +14,7 @@ struct PredictionError {
 impl warp::reject::Reject for PredictionError {}
 
 async fn predict(
-    model: Arc<Mutex<YOLOv8>>,
+    model: Arc<Mutex<YOLO>>,
     image_path: String,
 ) -> Result<impl Reply, Rejection> {
     let im = image::io::Reader::open(&image_path)
@@ -38,7 +39,7 @@ async fn predict(
             message: format!("Model prediction error: {}", e),
         })?;
 
-    println!("[SUCCESS] Received image \"{image_path}\".");
+    info!("Received image \"{image_path}\".");
 
     // Convert YOLOResult to a String representation
     let result_string = format!("{:?}", res);
@@ -62,8 +63,12 @@ async fn error_handler(err: Rejection) -> Result<impl Reply, Rejection> {
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    env_logger::init();
+
     let args = Args::parse();
-    let model = Arc::new(Mutex::new(YOLOv8::new(args)?));
+    let model = Arc::new(Mutex::new(YOLO::new(args)?));
+
+    info!("Detection server started!");
 
     let routes= warp::path!("predict" / String)
         .and(warp::get())

@@ -11,8 +11,8 @@ use crate::{
     OrtConfig, OrtEP, Point2, YOLOResult, YOLOTask, SKELETON,
 };
 
-pub struct YOLOv8 {
-    // YOLOv8 model for all yolo-tasks
+pub struct YOLO {
+    // YOLO model for all yolo-tasks
     engine: OrtBackend,
     nc: u32,
     nk: u32,
@@ -30,7 +30,7 @@ pub struct YOLOv8 {
     plot: bool,
 }
 
-impl YOLOv8 {
+impl YOLO {
     pub fn new(config: Args) -> Result<Self> {
         // execution provider
         let ep = if config.trt {
