@@ -1,4 +1,5 @@
 use ndarray::{Array, Axis, IxDyn};
+use serde::Serialize;
 
 #[derive(Clone, PartialEq, Default)]
 pub struct YOLOResult {
@@ -136,7 +137,7 @@ impl Embedding {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Default)]
+#[derive(Debug, Clone, PartialEq, Default, Serialize)]
 pub struct Bbox {
     // a bounding box around an object
     xmin: f32,

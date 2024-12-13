@@ -33,7 +33,7 @@ async fn predict(
     let imgs = vec![im];
 
     let mut model = model.lock().await;
-    let res = model
+    let yolo_res = model
         .run(&imgs)
         .map_err(|e| PredictionError {
             message: format!("Model prediction error: {}", e),
@@ -41,10 +41,11 @@ async fn predict(
 
     info!("Received image \"{image_path}\".");
 
-    // Convert YOLOResult to a String representation
-    let result_string = format!("{:?}", res);
+    // Convert YOLOResult to a json representation
+    let bboxes= yolo_res[0].bboxes.clone().unwrap();
+    let bboxes_json = serde_json::to_string(&bboxes).unwrap();
 
-    Ok(result_string)
+    Ok(bboxes_json)
 }
 
 async fn error_handler(err: Rejection) -> Result<impl Reply, Rejection> {
